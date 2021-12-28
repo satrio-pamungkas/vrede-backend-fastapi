@@ -1,0 +1,42 @@
+name: Build & Deploy to Production Stage
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest 
+
+    steps:
+      - name: Checkout from GitHub Actions
+        uses: actions/checkout@main
+        
+      - name: Login to Azure via Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Login to Azure Container Registry (ACR)
+        uses: azure/docker-login@v1
+        with:
+          login-server: testingfastapi.azurecr.io
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      
+      - name: Build & push container image to registry 
+        run: |
+          docker build . -t testingfastapi.azurecr.io/vrede:${{ github.sha }}
+          docker push testingfastapi.azurecr.io/vrede:${{ github.sha }}
+          
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'vrede'
+          images: 'testingfastapi.azurecr.io/vrede:${{ github.sha }}'
+          slot-name: 'staging'
+        
+      - name: Logout from Azure Account
+        run: |
+          az logout
