@@ -3,7 +3,7 @@ import os
 
 load_dotenv()
 
-SERVER_PORT = int(os.getenv("PORT"))
+SERVER_PORT = int(os.getenv("WEB_PORT"))
 
 DATABASE_USER = os.getenv("DB_USER")
 DATABASE_PASSWORD = os.getenv("DB_PASSWORD")
