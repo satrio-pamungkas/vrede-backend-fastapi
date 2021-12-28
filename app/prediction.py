@@ -1,18 +1,7 @@
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.svm import LinearSVC
-import pandas as pd
 import joblib
+from datetime import datetime
 
 def get_prediction(text_input):
-    data = pd.read_csv("dataset/dataset-cyberbullying.csv")
-    data['Komentar'] = data['Komentar'].str.replace(r"[\"\',]", '')
-    
-    x = data['Komentar']
-    y = data['Kategori']
-
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
-    
     cv = joblib.load("model/Vectorizer.pkl")
     model = joblib.load("model/SVM_Cyberbullying_model.pkl")
     
@@ -23,4 +12,6 @@ def get_prediction(text_input):
         return True
     else:
         return False
+    
+
     

@@ -1,60 +1,56 @@
 from fastapi import FastAPI 
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import RedirectResponse
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from settings import *
 from prediction import get_prediction
 from models import Base, Pengguna, Forum
-from schemas import PenggunaSchema
+from schemas import TambahPesanSchema, MessageSchema, TambahPesanResponseSchema
+from crud import create_pengguna, create_message, read_message
+from datetime import datetime
 import uvicorn
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def recreate_database():
-    Base.metadata.create_all(engine)
-    
-recreate_database()    
-
 app = FastAPI()
 db = SessionLocal()
 
-@app.get("/")
-def main_page():
-    return {"Hello": "World"}
+@app.get("/dokumentasi")
+def docs_redirect():
+    return RedirectResponse(url='/docs')
 
-@app.post("/pesan", response_model=PenggunaSchema)
-def add_pesan(pengguna: PenggunaSchema):
-    if get_prediction(pengguna.message):
-        return JSONResponse(status_code=403, content={
-            "status_code": 403,
+
+@app.post("/pesan", responses={201: {"model": TambahPesanResponseSchema}, 409: {"model": TambahPesanResponseSchema}})
+def add_message(pesan: TambahPesanSchema):
+    now = datetime.now()
+    user_id = now.strftime("UID%H%M%s")
+    message_id = now.strftime("MSG%H%M%s")
+    
+    if get_prediction(pesan.message):
+        create_pengguna(db, pesan, user_id)
+        create_message(db, pesan, 0, now, user_id, message_id)
+        
+        return JSONResponse(status_code=409, content={
+            "status_code": 409,
             "message": "Pesan terindikasi hate speech"
         })
         
-    db_pesan = Pengguna(
-        id = "CGS32",
-        name = pengguna.name
-    )
-    db.add(db_pesan)
-    db.commit()
-    db.refresh(db_pesan)
-    db.close()
-    
-    return JSONResponse(status_code=200, content={
-        "status_code": 200,
-        "message": "success"
+    create_pengguna(db, pesan, user_id)
+    create_message(db, pesan, 1, now, user_id, message_id)
+
+    return JSONResponse(status_code=201, content={
+        "status_code": 201,
+        "message": "Berhasil ditambahkan"
     })
     
 
-@app.get("/pesan")
-def get_pesan():
-    pesan = db.query(Pengguna).all()
-    db.close()
-    
+@app.get("/pesan", responses={200: {"model": MessageSchema}})
+def get_message():
     result =  jsonable_encoder({
-        "pesan": pesan
+        "pesan": read_message(db)
     })
     
     return JSONResponse(status_code=200, content={
